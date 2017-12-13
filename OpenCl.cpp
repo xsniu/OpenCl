@@ -5,6 +5,14 @@
 #else
 #include <CL/cl.h>
 #endif
+#include "opencv2/highgui.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/opencv.hpp"
+#include <memory>
+
+#include <vector>
 
 cl_context CreateContext()
 {
@@ -75,4 +83,111 @@ cl_command_queue CreateCommandQueue(cl_context context, cl_device_id *device)
     return commandQueue;
 }
 
+cl_program CreateProgram(cl_context context, cl_device_id device, const char *fileName)
+{
+    cl_int errNum;
+    std::ifstream in(fileName);
+    if(!in)
+    {
+        std::cout << "Program source file is not exist!" << std::endl;
+        return nullptr;
+    }
+    std::istreambuf_iterator<char> beg(in), end; 
+    std::string soucreProgram(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>(0));
+    in.close();
+    const char* source = soucreProgram.c_str();
+    auto program = clCreateProgramWithSource(context, 1, &source, nullptr, &errNum);
+    if (!program)
+    {
+        std::cout << "Create program failed!" << std::endl;
+        return nullptr;
+    }
+
+    errNum = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
+    if (errNum != CL_SUCCESS)
+    {
+        std::string buildInfo;
+        size_t infoLen;
+        errNum = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &infoLen);
+        if (errNum != CL_SUCCESS)
+        {
+            std::cout << "Get build info length failed!" << std::endl;
+            return nullptr;
+        }
+
+        buildInfo.resize(infoLen);
+        errNum = clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, infoLen, &buildInfo[0], nullptr);
+        if (errNum != CL_SUCCESS)
+        {
+            std::cout << "Get build log failed!" << std::endl;
+            return nullptr;
+        }
+
+        std::cout << buildInfo << std::endl;
+        clReleaseProgram(program);
+        return nullptr;
+    }
+
+    return program;
+}
+
+
+void Cleanup(cl_context context, cl_command_queue cmdQueue, cl_program program, cl_kernel kernel, \
+            std::vector<cl_mem> memObject)
+{
+    if(!memObject.empty())
+    {
+        for(auto &mem : memObject)
+        {
+            clReleaseMemObject(mem);
+        }
+    }
+
+    if (cmdQueue != 0)
+    {
+        clReleaseCommandQueue(cmdQueue);
+    }
+
+    if (kernel != 0)
+    {
+        clReleaseKernel(kernel);
+    }
+
+    if(program != 0)
+    {
+        clReleaseProgram(program);
+    }
+
+    if (context != 0)
+    {
+        clReleaseContext(context);
+    }
+
+}
+
+
+cl_mem LoadImage(cl_context context, const std::string& fileName)
+{
+    cv::Mat srcImg = cv::imread(fileName);
+    if (!srcImg.data)
+    {
+        std::cout << "Image file is not exist!" << std::endl;
+        return nullptr; 
+    }
+
+    cv::Mat grayImg;
+    cv::cvtColor(srcImg, grayImg, CV_BGR2GRAY);
+
+    auto width = grayImg.cols;
+    auto height = grayImg.rows; 
+    std::shared_ptr<uchar> bufIn = std::make_shared<uchar>();
+
+    
+}
+
+int main()
+{
+    return 0;
+
+}
 
