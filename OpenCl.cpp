@@ -181,8 +181,6 @@ cl_mem LoadImage(cl_context context, const std::string& fileName)
     auto width = grayImg.cols;
     auto height = grayImg.rows; 
     std::shared_ptr<uchar> bufIn = std::make_shared<uchar>();
-
-    
 }
 
 int main()
