@@ -234,6 +234,73 @@ int OpenClMgr::CreateKernel(const std::string& kernelName)
     return 0;
 }
 
+class InfoDevice::Imp
+{
+public:
+    void Display(cl_device_id device_id, cl_device_info infoName, std::string msg)
+    {
+        cl_int err;
+        std::size_t paraValueSize;
+
+        err = clGetDeviceInfo(device_id, infoName, 0, nullptr, &paraValueSize);
+        if (CL_SUCCESS != err)
+        {
+            std::cout << "Failed to find OpenCL device info length" << msg << std::endl;
+            return;
+        }
+
+        std::vector<T> info(paraValueSize);
+        err = clGetDeviceInfo(device_id, infoName, paraVlaueSize, &info[0], nullptr);
+        if (CL_SUCCESS != err)
+        {
+            std::cout << "Failed to find device info" << msg << std::endl;
+            return;
+        }
+
+        switch(infoName)
+        {
+            case CL_DEVICE_TYPE:
+            {
+                std::string deviceType;
+                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", deviceType);
+                
+                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", deviceType);
+
+                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", deviceType);                
+
+                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_DEFAULT, "CL_DEVICE_TYPE_DEFAULT", deviceType);                                
+
+                std::cout << "\t\t " << msg <<":\t" << deviceType << std::endl;
+                break;
+            }
+            default:
+                std::cout << "\t\t" << msg;
+                for(auto p : info)
+                {
+                    std::cout << p;
+                }
+                std::cout << endl;
+        }
+
+    }
+}
+
+InfoDevice::InfoDevice() :_ImpUptr(new Imp)
+{
+
+}
+
+InfoDevice::~InfoDevice()
+{
+
+}
+
+void InfoDevice::Display()
+{
+    auto& imp = *_ImpUptr;
+    
+
+}
 
 
 
