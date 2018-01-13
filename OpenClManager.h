@@ -7,6 +7,10 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
+
+#define CheckCLError(err) {std::cout << "Error" in << __FILE__ << " line " \
+                     << __LINE__ << " error " << err << std::endl;}
 class OpenClMgr
 {
     class Imp;

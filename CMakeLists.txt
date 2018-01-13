@@ -22,7 +22,7 @@ find_library(OPENCL_LIBRARIES OpenCl)
 find_path(OPENCL_INCLUDE_DIR OpenCL/cl.h)
 
 include_directories(${OPENCL_INCLUDE_DIR})
-set(SRC ${PROJECT_SOURCE_DIR}/OpenCl.cpp)
+set(SRC OpenClManager.cpp main.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC})
 
