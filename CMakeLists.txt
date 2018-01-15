@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -g -std=c++11 -o0 -Wno-c++11-extensions")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -g -std=c++14 -o0 -Wno-c++11-extensions")
 project(Opencl)
 
 
@@ -22,8 +22,9 @@ find_library(OPENCL_LIBRARIES OpenCl)
 find_path(OPENCL_INCLUDE_DIR OpenCL/cl.h)
 
 include_directories(${OPENCL_INCLUDE_DIR})
+set(SRC_HEAD OpenClManager.h)
 set(SRC OpenClManager.cpp main.cpp)
 
-add_executable(${PROJECT_NAME} ${SRC})
+add_executable(${PROJECT_NAME} ${SRC_HEAD} ${SRC})
 
 target_link_libraries(${PROJECT_NAME} ${OPENCL_LIBRARIES}) #${OpenCV_LIBS})

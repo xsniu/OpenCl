@@ -2,11 +2,8 @@
 // Created by niu19 on 2017/12/29.
 //
 #include "OpenClManager.h"
-#if __APPLE__
-#include <OpenCL/cl.h>
-#else
-#include <CL/cl.h>
-#endif
+
+
 
 #include <string>
 #include <iostream>
@@ -18,8 +15,8 @@ class OpenClMgr::Imp
 public:
     cl_context _Context;
     cl_command_queue  _CmdQueue;
-    cl_program _Program;
-    cl_device_id _Device;
+    std::vector<cl_program> _Program;
+    std::vector<cl_device_id> _Device;
     std::vector<cl_kernel> _Kernel;
 
 public:
@@ -36,7 +33,16 @@ public:
             return -1;
         }
 
-        ciErrNum = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 1, &_Device, NULL);
+        cl_uint deviceNum;
+        ciErrNum = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, 0, nullptr, &deviceNum);
+        CheckCLError(ciErrNum);
+        if (deviceNum <= 0)
+        {
+            return -1;
+        }
+        _Device.resize(deviceNum);
+
+        ciErrNum = clGetDeviceIDs(platform, CL_DEVICE_TYPE_ALL, deviceNum, &_Device[0], NULL);
         if (ciErrNum != CL_SUCCESS){
             printf("function clGetDeviceIDs goes wrong\n");
             return -1;
@@ -46,7 +52,7 @@ public:
                 CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0 };
 
         //create the context
-        _Context = clCreateContext(cps, 1, &_Device, NULL, NULL, &ciErrNum);
+        _Context = clCreateContext(cps, 1, &_Device[0], NULL, NULL, &ciErrNum);
 
         if (ciErrNum != CL_SUCCESS){
             printf("function clCreateContext goes wrong");
@@ -71,7 +77,7 @@ public:
             return -1;
         }
 
-        _CmdQueue = clCreateCommandQueue(_Context, _Device, 0, &errNum);
+        _CmdQueue = clCreateCommandQueue(_Context, _Device[0], 0, &errNum);
         if (errNum != CL_SUCCESS)
         {
             return -1;
@@ -81,41 +87,42 @@ public:
 
     }
 
-    int CreateProgram(const char*source)
+    cl_program CreateProgram(const char*source)
     {
         cl_int errNum;
 
-        _Program = clCreateProgramWithSource(_Context, 1, &source, nullptr, &errNum);
+        auto program = clCreateProgramWithSource(_Context, 1, &source, nullptr, &errNum);
 
         if (errNum != CL_SUCCESS){
-            return -1;
+            return nullptr;
         }
 
-        errNum = clBuildProgram(_Program, 0, nullptr, nullptr, nullptr, nullptr);
+        errNum = clBuildProgram(program, 0, nullptr, nullptr, nullptr, nullptr);
         if (errNum != CL_SUCCESS)
         {
             std::string buildInfo;
             size_t infoLen = 0;
-            errNum = clGetProgramBuildInfo(_Program, _Device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &infoLen);
+            errNum = clGetProgramBuildInfo(program, _Device[0], CL_PROGRAM_BUILD_LOG, 0, nullptr, &infoLen);
             if (errNum != CL_SUCCESS)
             {
-                return -1;
+                return nullptr;
             }
 
             buildInfo.resize(infoLen);
-            errNum = clGetProgramBuildInfo(_Program, _Device, CL_PROGRAM_BUILD_LOG, infoLen, \
+            errNum = clGetProgramBuildInfo(program, _Device[0], CL_PROGRAM_BUILD_LOG, infoLen, \
                                            &buildInfo[0], nullptr);
             if (errNum)
             {
-                return -1;
+                return nullptr;
             }
 
             std::cout << buildInfo << std::endl;
-            clReleaseProgram(_Program);
-            return -1;
+            clReleaseProgram(program);
+            return nullptr;
         }
+        _Program.push_back(program);
 
-        return 0;
+        return program;
     }
 
 
@@ -131,9 +138,9 @@ public:
             clReleaseKernel(p);
         }
 
-        if (_Program)
+        for (auto p : _Program)
         {
-            clReleaseProgram(_Program);
+            clReleaseProgram(p);
         }
 
         if (_Context)
@@ -142,19 +149,19 @@ public:
         }
     }
 
-    int CreateKernel(const std::string& kernelName)
+    cl_kernel CreateKernel(const cl_program program,  const std::string& kernelName)
     {
         cl_int errNum;
-        auto kernel = clCreateKernel(_Program, kernelName.c_str(), &errNum);
+        auto kernel = clCreateKernel(program, kernelName.c_str(), &errNum);
         _Kernel.push_back(kernel);
         if (errNum == CL_SUCCESS){
-            return -1;
+            return nullptr;
         }
 
         if (errNum != CL_SUCCESS){
-            return -1;
+            return nullptr;
         }
-        return 0;
+        return kernel;
     }
 
 };
@@ -162,7 +169,7 @@ public:
 
 OpenClMgr::OpenClMgr() : _ImpUptr(new Imp)
 {
-
+    
 }
 
 OpenClMgr::~OpenClMgr()
@@ -203,104 +210,118 @@ void OpenClMgr::Uint()
     imp.CleanUp();
 }
 
-int OpenClMgr::CreateProgram(const std::string &kernelFile)
+cl_program OpenClMgr::CreateProgram(const std::string &kernelFile)
 {
     std::ifstream ifs(kernelFile, std::ios::in);
-    if (ifs.is_open())
+    if (!ifs.is_open())
     {
         std::cout << "Open kernel file failed!" << std::endl;
-        return -1;
+        return nullptr;
     }
     std::string source(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>(0));
 
     auto &imp = *_ImpUptr;
-   if (-1 == imp.CreateProgram(source.c_str()))
+    auto program = imp.CreateProgram(source.c_str()); 
+   if (nullptr == program)
    {
        printf("Create program failed!\n");
-       return -1;
+       return nullptr;
    }
-   return 0;
+   return program;
 }
 
-int OpenClMgr::CreateKernel(const std::string& kernelName)
+cl_kernel OpenClMgr::CreateKernel(const cl_program program, const std::string& kernelName)
 {
     auto& imp = *_ImpUptr;
-    if (-1 == imp.CreateKernel(kernelName.c_str()))
+    auto kernel = imp.CreateKernel(program, kernelName.c_str());
+    if (nullptr == kernel)
     {
         std::cout << "Create kernel : %s failed!" << kernelName << std::endl;
-        return -1;
+        return nullptr;
     }
 
-    return 0;
+    return kernel;
 }
 
-class InfoDevice::Imp
+cl_context OpenClMgr::GetContext() const
 {
-public:
-    void Display(cl_device_id device_id, cl_device_info infoName, std::string msg)
-    {
-        cl_int err;
-        std::size_t paraValueSize;
+    auto &imp = *_ImpUptr;
+    return imp._Context;
+}
 
-        err = clGetDeviceInfo(device_id, infoName, 0, nullptr, &paraValueSize);
-        if (CL_SUCCESS != err)
-        {
-            std::cout << "Failed to find OpenCL device info length" << msg << std::endl;
-            return;
-        }
+cl_command_queue OpenClMgr::GetCommandQueue() const 
+{
+    auto &imp = *_ImpUptr;
+    return imp._CmdQueue;
+}
 
-        std::vector<T> info(paraValueSize);
-        err = clGetDeviceInfo(device_id, infoName, paraVlaueSize, &info[0], nullptr);
-        if (CL_SUCCESS != err)
-        {
-            std::cout << "Failed to find device info" << msg << std::endl;
-            return;
-        }
+// class InfoDevice::Imp
+// {
+// public:
+//     void Display(cl_device_id device_id, cl_device_info infoName, std::string msg)
+//     {
+//         cl_int err;
+//         std::size_t paraValueSize;
 
-        switch(infoName)
-        {
-            case CL_DEVICE_TYPE:
-            {
-                std::string deviceType;
-                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", deviceType);
+//         err = clGetDeviceInfo(device_id, infoName, 0, nullptr, &paraValueSize);
+//         if (CL_SUCCESS != err)
+//         {
+//             std::cout << "Failed to find OpenCL device info length" << msg << std::endl;
+//             return;
+//         }
+
+//         std::vector<T> info(paraValueSize);
+//         err = clGetDeviceInfo(device_id, infoName, paraVlaueSize, &info[0], nullptr);
+//         if (CL_SUCCESS != err)
+//         {
+//             std::cout << "Failed to find device info" << msg << std::endl;
+//             return;
+//         }
+
+//         switch(infoName)
+//         {
+//             case CL_DEVICE_TYPE:
+//             {
+//                 std::string deviceType;
+//                 AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_CPU, "CL_DEVICE_TYPE_CPU", deviceType);
                 
-                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", deviceType);
+//                 AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_GPU, "CL_DEVICE_TYPE_GPU", deviceType);
 
-                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", deviceType);                
+//                 AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_ACCELERATOR, "CL_DEVICE_TYPE_ACCELERATOR", deviceType);                
 
-                AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_DEFAULT, "CL_DEVICE_TYPE_DEFAULT", deviceType);                                
+//                 AppendBitFiled(*(reinterpret_cast<cl_device_type*>(&info[0])), CL_DEVICE_TYPE_DEFAULT, "CL_DEVICE_TYPE_DEFAULT", deviceType);                                
 
-                std::cout << "\t\t " << msg <<":\t" << deviceType << std::endl;
-                break;
-            }
-            default:
-                std::cout << "\t\t" << msg;
-                for(auto p : info)
-                {
-                    std::cout << p;
-                }
-                std::cout << endl;
-        }
+//                 std::cout << "\t\t " << msg <<":\t" << deviceType << std::endl;
+//                 break;
+//             }
+//             default:
+//                 std::cout << "\t\t" << msg;
+//                 for(auto p : info)
+//                 {
+//                     std::cout << p;
+//                 }
+//                 std::cout << std::endl;
+//         }
 
-    }
-}
+//     }
+// };
 
-InfoDevice::InfoDevice() :_ImpUptr(new Imp)
-{
+// InfoDevice::InfoDevice() :_ImpUptr(new Imp)
+// {
 
-}
+// }
 
-InfoDevice::~InfoDevice()
-{
+// InfoDevice::~InfoDevice()
+// {
 
-}
+// }
 
-void InfoDevice::Display()
-{
-    auto& imp = *_ImpUptr;
+// void InfoDevice::Display()
+// {
+//     auto& imp = *_ImpUptr;
     
 
-}
+// }
 
 
 
