@@ -2,7 +2,10 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 set(CMAKE_BUILD_TYPE "Debug")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -g -std=c++14 -o0 -Wno-c++11-extensions")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS}  -std=c++11 -O0  -Wall -g -ggdb ")
+SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS}  -std=c++11 -O3  -Wall")
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -g -gdb -std=c++11 -o0")
 project(Opencl)
 
 

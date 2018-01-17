@@ -154,9 +154,6 @@ public:
         cl_int errNum;
         auto kernel = clCreateKernel(program, kernelName.c_str(), &errNum);
         _Kernel.push_back(kernel);
-        if (errNum == CL_SUCCESS){
-            return nullptr;
-        }
 
         if (errNum != CL_SUCCESS){
             return nullptr;

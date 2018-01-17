@@ -4,9 +4,8 @@
 
 int main()
 {
-    cv::Mat img = cv::imread("1.jpg");
-    cv::Mat srcImg;
-    cv::resize(img, srcImg, cv::Size(1280, 720));
+    cv::Mat srcImg = cv::imread("1.jpeg");
+    //cv::resize(img, srcImg, cv::Size(1280, 720));
     
     auto& ocl = OpenClMgr::GetInstance();
     if (ocl.Init())
@@ -33,7 +32,7 @@ int main()
     }
 
     auto kernel = ocl.CreateKernel(program, "ImageConvert");
-    if (!program)
+    if (!kernel)
     {
         return 0;
     }
@@ -41,7 +40,7 @@ int main()
     cv::Mat destImg(srcImg.size(), srcImg.type());
 
     cl_image_format clImageFormat;
-    clImageFormat.image_channel_data_type = CL_UNSIGNED_INT32;
+    clImageFormat.image_channel_data_type = CL_UNORM_INT8;
     clImageFormat.image_channel_order = CL_RGBA;
 
     cl_int err;
@@ -55,6 +54,7 @@ int main()
 
     auto width = srcImg.cols;
     auto height = srcImg.rows;
+    auto channel = srcImg.channels();
 
     err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &srcImage);
     err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &destImage);
@@ -69,16 +69,24 @@ int main()
     err = clEnqueueWriteImage(commandQueue, srcImage, CL_TRUE, origin, region, \
                                  0, 0, srcImg.data, 0, nullptr, nullptr);
     CheckCLError(err);
+    int m = (static_cast<size_t>(width) / 16 + 1) * 16;
+    int n = (static_cast<size_t>(height) / 16 + 1) * 16;
 
-    size_t globalThread[] = {static_cast<size_t>(width), static_cast<size_t>(height)};
-    size_t localThread[] = {16, 16};
-    err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalThread, localThread, 0, nullptr, nullptr);
+
+    size_t globalThread[] = {(static_cast<size_t>(width) / 16 + 1) * 16, \
+                            (static_cast<size_t>(height) / 16 + 1) * 16};
+    // size_t localThread[] = {16, 16};
+    err = clEnqueueNDRangeKernel(commandQueue, kernel, 2, nullptr, globalThread, nullptr/* localThread */, 0, nullptr, nullptr);
     CheckCLError(err);
     
 
     err = clEnqueueReadImage(commandQueue, destImage, CL_TRUE, origin, region, 0, 0, \ 
                 (void*)destImg.data, 0, nullptr, nullptr);
     CheckCLError(err);
+
+    cv::imshow("src", srcImg);
+
+    cv::imshow("test", destImg);
 
     // cv::imshow("test", srcImg);
     cv::waitKey(0);
