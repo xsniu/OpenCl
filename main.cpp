@@ -87,7 +87,6 @@ int main()
     cv::imshow("src", srcImg);
 
     cv::imshow("test", destImg);
-    cl::Platform::
 
     // cv::imshow("test", srcImg);
     cv::waitKey(0);
