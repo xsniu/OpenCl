@@ -23,6 +23,21 @@ public:
     Imp() {};
     ~Imp() {};
 
+    void CL_CALLBACK EventCallBack(cl_event env, cl_int event_status)
+    {
+        cl_int err = 0;
+        cl_ulong event_start_time = 0;
+        cl_ulong event_end_time = 0;
+        size_t result_len = 0;
+        double runTime = 0;
+        err = clGetEventProfilingInfo(env, CL_PROFILING_COMMAND_QUEUED,  \
+                                      sizeof(cl_ulong), &event_start_time, &result_len);
+        err = clGetEventProfilingInfo(env, CL_PROFILING_COMMAND_END, sizeof(cl_ulong), \
+                                     &event_end_time, &result_len);
+        runTime = event_end_time - event_start_time;
+        std::cout << "Kernel runtime %f secs" << runTime * 1.0e-9 << std::endl;
+    }
+
     int CreateContext()
     {
         cl_int ciErrNum;
@@ -77,6 +92,8 @@ public:
             return -1;
         }
 
+        // Enable performance envaluation information
+        // _CmdQueue = clCreateCommandQueue(_Context, _Device[0], CL_QUEUE_PROFILING_ENABLE, &errNum);
         _CmdQueue = clCreateCommandQueue(_Context, _Device[0], 0, &errNum);
         if (errNum != CL_SUCCESS)
         {

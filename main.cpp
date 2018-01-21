@@ -4,7 +4,7 @@
 
 int main()
 {
-    cv::Mat srcImg = cv::imread("1.jpeg");
+    cv::Mat srcImg = cv::imread("1.jpeg", -1);
     //cv::resize(img, srcImg, cv::Size(1280, 720));
     
     auto& ocl = OpenClMgr::GetInstance();
@@ -41,7 +41,7 @@ int main()
 
     cl_image_format clImageFormat;
     clImageFormat.image_channel_data_type = CL_UNORM_INT8;
-    clImageFormat.image_channel_order = CL_RGBA;
+    clImageFormat.image_channel_order = CL_RGB  ;
 
     cl_int err;
     auto srcImage = clCreateImage2D(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR, \
@@ -68,7 +68,7 @@ int main()
     size_t region[3] = {static_cast<size_t>(width), static_cast<size_t>(height), 1 };
     err = clEnqueueWriteImage(commandQueue, srcImage, CL_TRUE, origin, region, \
                                  0, 0, srcImg.data, 0, nullptr, nullptr);
-    CheckCLError(err);
+        CheckCLError(err);
     int m = (static_cast<size_t>(width) / 16 + 1) * 16;
     int n = (static_cast<size_t>(height) / 16 + 1) * 16;
 
@@ -87,6 +87,7 @@ int main()
     cv::imshow("src", srcImg);
 
     cv::imshow("test", destImg);
+    cl::Platform::
 
     // cv::imshow("test", srcImg);
     cv::waitKey(0);

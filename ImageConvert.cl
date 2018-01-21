@@ -7,7 +7,7 @@ __kernel void ImageConvert(__read_only image2d_t srcImg, __write_only image2d_t 
     if (outImageCoord.x < width && outImageCoord.y < height)
     {
         float4 pixelIn = read_imagef(srcImg, sampler, outImageCoord);
-        float4 pixelOut = (float4)(pixelIn.w, pixelIn.z, pixelIn.y, pixelIn.x);
+        float4 pixelOut = (float4)(0.0f, pixelIn.y, pixelIn.x, pixelIn.w);
         write_imagef(destImg, outImageCoord, pixelOut);
     }
 }   
