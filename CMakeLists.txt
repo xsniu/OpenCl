@@ -2,10 +2,11 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
 set(CMAKE_BUILD_TYPE "Debug")
-SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS}  -std=c++11 -O0  -Wall -g -ggdb ")
-SET(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS}  -std=c++11 -O3  -Wall")
+SET(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXX_FLAGS}  -std=c++14 -O0  -Wall -g -ggdb ")
+SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXX_FLAGS}  -std=c++14 -O3  -Wall")
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}  -g -gdb -std=c++11 -o0")
+add_compile_options(-std=c++14)
+
 project(Opencl)
 
 
@@ -20,9 +21,19 @@ link_directories(${OPENCV_LIBRARY_DIR})
 link_libraries(${OpenCV_LIBRARIES})
 # include_directories(${PROJECT_SOURCE_DIR}/include)
 
-# find_package(OpenCL REQUIRED)
-find_library(OPENCL_LIBRARIES OpenCl)
-find_path(OPENCL_INCLUDE_DIR OpenCL/cl.h)
+
+
+if(WIN32)
+    message("WIN32")
+elseif(APPLE)
+    message("APPLE")
+    find_library(OPENCL_LIBRARIES OpenCl)    
+    find_path(OPENCL_INCLUDE_DIR OpenCL/cl.h)
+elseif(UNIX)
+    message("UNIX")
+    find_package(OpenCL REQUIRED)
+endif()
+
 
 include_directories(${OPENCL_INCLUDE_DIR})
 set(SRC_HEAD OpenClManager.h)
@@ -30,4 +41,15 @@ set(SRC OpenClManager.cpp main.cpp)
 
 add_executable(${PROJECT_NAME} ${SRC_HEAD} ${SRC})
 
-target_link_libraries(${PROJECT_NAME} ${OPENCL_LIBRARIES}) #${OpenCV_LIBS})
+if(WIN32)
+    message("WIN32")
+elseif(APPLE)
+    target_link_libraries(${PROJECT_NAME} ${OPENCL_LIBRARIES}) #${OpenCV_LIBS})
+elseif(UNIX)
+    message("UNIX")
+    find_package(OpenCL REQUIRED)
+    link_directories(${OpenCL_LIBRARY_DIR})
+    target_link_libraries(${PROJECT_NAME} ${OpenCL_LIBRARIES}) 
+
+endif()
+
